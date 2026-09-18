@@ -33,8 +33,8 @@ import storage
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-REMINDER_DAYS_BEFORE = int(os.getenv("REMINDER_DAYS_BEFORE", "3"))
-DAILY_CHECK_HOUR_UTC = int(os.getenv("DAILY_CHECK_HOUR_UTC", "9"))  # 9am UTC default
+REMINDER_DAYS_BEFORE = int(os.getenv("REMINDER_DAYS_BEFORE", "0"))
+DAILY_CHECK_HOUR_UTC = int(os.getenv("DAILY_CHECK_HOUR_UTC", "5"))  # 9am UTC default
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")  # "en" or "ru"
 
 logging.basicConfig(
