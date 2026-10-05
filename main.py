@@ -252,9 +252,6 @@ async def daily_check(context: ContextTypes.DEFAULT_TYPE):
             if days_left == 0:
                 msg = random.choice(TODAY_TEMPLATES[lang]).format(mention=mention)
                 await context.bot.send_message(chat_id=chat_id, text=msg)
-            elif days_left == REMINDER_DAYS_BEFORE:
-                msg = random.choice(REMINDER_TEMPLATES[lang]).format(mention=mention, days=days_left)
-                await context.bot.send_message(chat_id=chat_id, text=msg)
 
 
 # ---------- app setup ----------
