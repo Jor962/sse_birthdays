@@ -12,7 +12,6 @@ Commands:
 
 Daily job (runs once every 24h):
   - Posts a message for anyone whose birthday is TODAY
-  - Posts a heads-up for anyone whose birthday is in REMINDER_DAYS_BEFORE days
 """
 
 import logging
@@ -33,8 +32,7 @@ import storage
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-REMINDER_DAYS_BEFORE = int(os.getenv("REMINDER_DAYS_BEFORE", "0"))
-DAILY_CHECK_HOUR_UTC = int(os.getenv("DAILY_CHECK_HOUR_UTC", "5"))  # 9am UTC default
+DAILY_CHECK_HOUR_UTC = int(os.getenv("DAILY_CHECK_HOUR_UTC", "9"))  # 9am UTC default
 DEFAULT_LANGUAGE = os.getenv("DEFAULT_LANGUAGE", "en")  # "en" or "ru"
 
 logging.basicConfig(
@@ -57,18 +55,6 @@ TODAY_TEMPLATES = {
         "🥳 Поздравляем с днём рождения, {mention}! Пусть этот год принесёт много ярких побед и приятных сюрпризов!",
     ],
 }
-
-REMINDER_TEMPLATES = {
-    "en": [
-        "📅 Heads up — {mention}'s birthday is in {days} days!",
-        "📅 Don't forget: {mention}'s birthday is coming up in {days} days!",
-    ],
-    "ru": [
-        "📅 Напоминание: день рождения {mention} через {days} дн.!",
-        "📅 Не забудьте: скоро день рождения у {mention} — через {days} дн.!",
-    ],
-}
-
 
 def mention_for(name: str, username: str | None) -> str:
     return f"@{username}" if username else name
@@ -142,8 +128,7 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/remove Name — delete a birthday\n"
         "/setlanguage en|ru — set the language for this chat's birthday messages\n"
         "/chatid — show this chat's ID (useful for admin setup)\n"
-        f"\nI'll also post automatically here when it's someone's birthday, "
-        f"and give a heads-up {REMINDER_DAYS_BEFORE} days before."
+        "\nI'll also post automatically here when it's someone's birthday."
     )
 
 
@@ -248,8 +233,8 @@ async def daily_check(context: ContextTypes.DEFAULT_TYPE):
             lang = DEFAULT_LANGUAGE if DEFAULT_LANGUAGE in TODAY_TEMPLATES else "en"
         for name, day, month, year, username in storage.list_birthdays(chat_id):
             days_left = storage.days_until_next_birthday(day, month, today)
-            mention = mention_for(name, username)
             if days_left == 0:
+                mention = mention_for(name, username)
                 msg = random.choice(TODAY_TEMPLATES[lang]).format(mention=mention)
                 await context.bot.send_message(chat_id=chat_id, text=msg)
 
@@ -262,7 +247,21 @@ def main():
 
     storage.init_db()
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    builder = (
+        Application.builder()
+        .token(BOT_TOKEN)
+        .connect_timeout(30)
+        .read_timeout(30)
+        .write_timeout(30)
+        .pool_timeout(30)
+        .get_updates_read_timeout(40)
+    )
+
+    proxy_url = os.getenv("TELEGRAM_PROXY_URL")
+    if proxy_url:
+        builder = builder.proxy(proxy_url)
+
+    app = builder.build()
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_cmd))
@@ -276,7 +275,7 @@ def main():
     app.job_queue.run_daily(daily_check, time=dtime(hour=DAILY_CHECK_HOUR_UTC, minute=0))
 
     logger.info("Bot starting (polling)...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
